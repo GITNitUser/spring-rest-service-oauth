@@ -34,7 +34,7 @@ public class GreetingController {
 	@RequestMapping("/greeting")
 	public Greeting greeting(@AuthenticationPrincipal User user) {
 	 
-		return new Greeting(counter.incrementAndGet(), String.format(template, "Kot"));
+		return new Greeting(counter.incrementAndGet(), String.format(template, user.getName()));
 	}
 
 	@RequestMapping("/client_greeting")
