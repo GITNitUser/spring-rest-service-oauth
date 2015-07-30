@@ -41,8 +41,7 @@ public class OAuth2ServerConfiguration {
 
 	@Configuration
 	@EnableResourceServer
-	protected static class ResourceServerConfiguration extends
-			ResourceServerConfigurerAdapter {
+	protected static class ResourceServerConfiguration extends ResourceServerConfigurerAdapter {
 
 		@Override
 		public void configure(ResourceServerSecurityConfigurer resources) {
@@ -58,28 +57,26 @@ public class OAuth2ServerConfiguration {
 			http
 				.authorizeRequests()
 					.antMatchers("/users").hasRole("ADMIN")
-					.antMatchers("/greeting").authenticated();
+					.antMatchers("/greeting").hasRole("USER")
+					.antMatchers("/client_greeting").access("#oauth2.isClient()");
 			// @formatter:on
 		}
-
 	}
 
 	@Configuration
 	@EnableAuthorizationServer
-	protected static class AuthorizationServerConfiguration extends
-			AuthorizationServerConfigurerAdapter {
+	protected static class AuthorizationServerConfiguration extends AuthorizationServerConfigurerAdapter {
 
 		private TokenStore tokenStore = new InMemoryTokenStore();
 
 		@Autowired
 		@Qualifier("authenticationManagerBean")
 		private AuthenticationManager authenticationManager;
-        @Autowired
-	    private CustomUserDetailsService userDetailsService;
-        
+		@Autowired
+		private CustomUserDetailsService userDetailsService;
+
 		@Override
-		public void configure(AuthorizationServerEndpointsConfigurer endpoints)
-				throws Exception {
+		public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
 			// @formatter:off
 			endpoints
 			.tokenStore(this.tokenStore)
@@ -93,12 +90,44 @@ public class OAuth2ServerConfiguration {
 			// @formatter:off
 			clients
 				.inMemory()
-					.withClient("clientapp")
-						.authorizedGrantTypes("password", "refresh_token")
+					.withClient("user_member")
+						.authorizedGrantTypes("password", "refresh_token" )
 						.authorities("USER")
 						.scopes("read", "write")
 						.resourceIds(RESOURCE_ID)
-						.secret("123456");
+					.and()
+					.withClient("clientapp")
+						.authorizedGrantTypes("client_credentials")
+						.authorities("CLIENT")
+						.scopes("read", "write")
+						.resourceIds(RESOURCE_ID)
+						.secret("123456")
+					;
+			    //client access sample
+		        //  curl -X POST -vu clientapp:123456 http://localhost:8080/oauth/token -H "Accept: application/json" -d "grant_type=client_credentials"
+			
+			    //  after we recive token RECEIVED_TOKEN
+			
+			    //  curl http://localhost:8080/greeting -H "Authorization: Bearer RECEIVED_TOKEN"	
+			    //  {"error":"access_denied","error_description":"Access is denied"}
+			
+			    //  curl http://localhost:8080/client_greeting -H "Authorization: Bearer RECEIVED_TOKEN"
+			    //  {"id":2,"content":"Hello, Hello client app!"}
+			
+			
+			
+			
+		        //user access sample
+		        //  curl -X POST -vu user_member: http://localhost:8080/oauth/token -H "Accept: application/json" -d "password=spring&username=roy&grant_type=password"
+
+			    //  after we recive token RECEIVED_TOKEN
+			
+			    //curl http://localhost:8080/client_greeting -H "Authorization: Bearer RECEIVED_TOKEN"
+			    //{"error":"access_denied","error_description":"Access is denied"}
+			
+			    //  curl http://localhost:8080/greeting -H "Authorization: Bearer RECEIVED_TOKEN"
+			    //  {"id":3,"content":"Hello, Kot!"}
+			
 			// @formatter:on
 		}
 
