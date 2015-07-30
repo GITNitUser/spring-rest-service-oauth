@@ -126,7 +126,7 @@ public class OAuth2ServerConfiguration {
 			    //{"error":"access_denied","error_description":"Access is denied"}
 			
 			    //  curl http://localhost:8080/greeting -H "Authorization: Bearer RECEIVED_TOKEN"
-			    //  {"id":3,"content":"Hello, Kot!"}
+			    //  {"id":3,"content":"Hello, roy!"}
 			
 			// @formatter:on
 		}
