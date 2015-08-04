@@ -60,9 +60,7 @@ public class GreetingControllerTest {
 	@Before
 	public void setUp() {
 		MockitoAnnotations.initMocks(this);
-		mvc = MockMvcBuilders.webAppContextSetup(context)
-				.addFilter(springSecurityFilterChain)
-				.build();
+		mvc = MockMvcBuilders.webAppContextSetup(context).addFilter(springSecurityFilterChain).build();
 	}
 
 	@Test
@@ -75,8 +73,8 @@ public class GreetingControllerTest {
 		// @formatter:on
 	}
 
-	private String getAccessToken(String username, String password) throws Exception {
-		String authorization = "Basic " + new String(Base64Utils.encode("clientapp:123456".getBytes()));
+	private String getUserAccessToken(String username, String password) throws Exception {
+		String authorization = "Basic " + new String(Base64Utils.encode("user_member:".getBytes()));
 		String contentType = MediaType.APPLICATION_JSON + ";charset=UTF-8";
 
 		// @formatter:off
@@ -90,8 +88,8 @@ public class GreetingControllerTest {
 								.param("password", password)
 								.param("grant_type", "password")
 								.param("scope", "read write")
-								.param("client_id", "clientapp")
-								.param("client_secret", "123456"))
+								.param("client_id", "user_member"))
+								//.param("client_secret", "123456"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(contentType))
 				.andExpect(jsonPath("$.access_token", is(notNullValue())))
@@ -106,9 +104,37 @@ public class GreetingControllerTest {
 		return content.substring(17, 53);
 	}
 
+	private String getClientAccessToken(String clientId, String secret) throws Exception {
+		String authorization = "Basic " + new String(Base64Utils.encode((clientId + ":" + secret).getBytes()));
+		String contentType = MediaType.APPLICATION_JSON + ";charset=UTF-8";
+
+		// @formatter:off
+		String content = mvc
+				.perform(
+						post("/oauth/token")
+								.header("Authorization", authorization)
+								.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+								.param("grant_type", "client_credentials")
+								.param("scope", "read write")
+								.param("client_id", clientId)
+								.param("client_secret", secret))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(contentType))
+				.andExpect(jsonPath("$.access_token", is(notNullValue())))
+				.andExpect(jsonPath("$.token_type", is(equalTo("bearer"))))
+				//.andExpect(jsonPath("$.refresh_token", is(notNullValue())))
+				.andExpect(jsonPath("$.expires_in", is(greaterThan(4000))))
+				.andExpect(jsonPath("$.scope", is(equalTo("read write"))))
+				.andReturn().getResponse().getContentAsString();
+
+		// @formatter:on
+
+		return content.substring(17, 53);
+	}
+
 	@Test
 	public void greetingAuthorized() throws Exception {
-		String accessToken = getAccessToken("roy", "spring");
+		String accessToken = getUserAccessToken("roy", "spring");
 
 		// @formatter:off
 		mvc.perform(get("/greeting")
@@ -136,10 +162,36 @@ public class GreetingControllerTest {
 	}
 
 	@Test
+	public void greetingClientAuthorized() throws Exception {
+		String accessToken = getClientAccessToken("clientapp", "123456");
+
+		// @formatter:off
+		mvc.perform(get("/client_greeting")
+				.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content", is("Hello, Client app!")));
+		// @formatter:on
+
+		// @formatter:off
+		mvc.perform(get("/client_greeting")
+				.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content", is("Hello, Client app!")));
+		// @formatter:on
+
+		// @formatter:off
+		mvc.perform(get("/client_greeting")
+				.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content", is("Hello, Client app!")));
+		// @formatter:on
+	}
+
+	@Test
 	public void usersEndpointAuthorized() throws Exception {
 		// @formatter:off
 		mvc.perform(get("/users")
-				.header("Authorization", "Bearer " + getAccessToken("roy", "spring")))
+				.header("Authorization", "Bearer " + getUserAccessToken("roy", "spring")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(3)));
 		// @formatter:on
@@ -149,7 +201,7 @@ public class GreetingControllerTest {
 	public void usersEndpointAccessDenied() throws Exception {
 		// @formatter:off
 		mvc.perform(get("/users")
-				.header("Authorization", "Bearer " + getAccessToken("craig", "spring")))
+				.header("Authorization", "Bearer " + getUserAccessToken("craig", "spring")))
 				.andExpect(status().is(403));
 		// @formatter:on
 	}
